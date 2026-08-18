@@ -8,6 +8,7 @@ eslint.config.js
 tsconfig.json
 **/*.map
 *.vsix
+assets/icon-source.png
 node_modules/@img/sharp-wasm32/**
 node_modules/@img/sharp-linuxmusl-x64/**
 node_modules/@img/sharp-libvips-linuxmusl-x64/**

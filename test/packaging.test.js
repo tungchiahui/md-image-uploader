@@ -19,6 +19,11 @@ test('uses the tungchiahui Marketplace extension identity', () => {
   );
 });
 
+test('declares the optimized extension icon', () => {
+  assert.equal(packageJson.icon, 'assets/icon.png');
+  assert.match(vscodeIgnore, /^assets\/icon-source\.png$/m);
+});
+
 test('defines reproducible Linux x64 VSIX package and verification scripts', () => {
   assert.match(packageJson.scripts['package:vsix'], /--target linux-x64/);
   assert.match(packageJson.scripts['verify:vsix'], /verifyVsix\.js/);

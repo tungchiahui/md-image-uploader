@@ -22,6 +22,7 @@ async function main() {
 
   requireEntry(entryNames, 'extension.vsixmanifest');
   requireEntry(entryNames, 'extension/package.json');
+  requireEntry(entryNames, 'extension/assets/icon.png');
   requireEntry(entryNames, 'extension/dist/extension.js');
   requireEntry(entryNames, 'extension/dist/imageConverter.js');
   requireEntry(entryNames, 'extension/node_modules/sharp/package.json');

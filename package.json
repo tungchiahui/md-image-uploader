@@ -19,6 +19,7 @@
     "onCommand:mdImageUploader.testUpload"
   ],
   "main": "./dist/extension.js",
+  "icon": "assets/icon.png",
   "contributes": {
     "commands": [
       {
