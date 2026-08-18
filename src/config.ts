@@ -84,17 +84,11 @@ export function validateConfig(
     return config;
   }
 
-  requireNonEmptyString('s3.region', config.s3.region);
-  requireNonEmptyString('s3.bucket', config.s3.bucket);
-  requireNonEmptyString('s3.accessKeyId', config.s3.accessKeyId);
-  requireNonEmptyString('s3.secretAccessKey', config.s3.secretAccessKey);
+  validateS3Config(config.s3);
   requireNonEmptyString('datedUploadPath', config.datedUploadPath);
   requireNonEmptyString('undatedUploadPath', config.undatedUploadPath);
   requireNonEmptyString('cdnUrl', config.cdnUrl);
 
-  if (config.s3.endpoint.trim().length > 0) {
-    requireHttpUrl('s3.endpoint', config.s3.endpoint);
-  }
   requireHttpUrl('cdnUrl', config.cdnUrl);
 
   if (
@@ -106,6 +100,19 @@ export function validateConfig(
       'webp.quality',
       'expected an integer from 1 to 100',
     );
+  }
+
+  return config;
+}
+
+export function validateS3Config(config: S3Config): S3Config {
+  requireNonEmptyString('s3.region', config.region);
+  requireNonEmptyString('s3.bucket', config.bucket);
+  requireNonEmptyString('s3.accessKeyId', config.accessKeyId);
+  requireNonEmptyString('s3.secretAccessKey', config.secretAccessKey);
+
+  if (config.endpoint.trim().length > 0) {
+    requireHttpUrl('s3.endpoint', config.endpoint);
   }
 
   return config;

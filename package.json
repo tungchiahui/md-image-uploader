@@ -11,10 +11,18 @@
     "Other"
   ],
   "activationEvents": [
-    "onLanguage:markdown"
+    "onLanguage:markdown",
+    "onCommand:mdImageUploader.testUpload"
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "commands": [
+      {
+        "command": "mdImageUploader.testUpload",
+        "title": "Test Upload",
+        "category": "MD Image Uploader"
+      }
+    ],
     "configuration": {
       "title": "MD Image Uploader",
       "properties": {
@@ -106,6 +114,7 @@
     "typescript": "^5.7.2"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1112.0",
     "sharp": "^0.35.3"
   }
 }

@@ -2,7 +2,7 @@
 
 MD Image Uploader is a desktop VS Code extension for uploading images pasted into Markdown documents.
 
-The project currently contains the extension scaffold, resource-scoped configuration, date routing, object key generation, WebP conversion, and final-WebP hashing. Uploads and paste handling will be added in later tasks from the project specification.
+The project currently contains the extension scaffold, resource-scoped configuration, date routing, object key generation, WebP conversion, final-WebP hashing, and S3 uploads. Paste handling will be added in later tasks from the project specification.
 
 ## Development
 
@@ -49,3 +49,9 @@ Settings use the `mdImageUploader` namespace and are read for the active Markdow
 ```
 
 Credentials are stored as plain VS Code settings in V1. Keep them in User Settings and never commit them to a shared `.vscode/settings.json`.
+
+## Test upload command
+
+Open a Markdown document and run **MD Image Uploader: Test Upload** from the Command Palette. The command reads S3 settings for that document and uploads a small built-in WebP to `md-image-uploader-test/<timestamp>.webp`.
+
+This command performs a real S3 write. It does not insert Markdown or handle `Ctrl+V`.

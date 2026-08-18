@@ -7,6 +7,7 @@ const {
   getValidatedConfig,
   readConfig,
   validateConfig,
+  validateS3Config,
 } = require('../dist/config.js');
 
 const completeValues = {
@@ -232,4 +233,10 @@ test('getValidatedConfig combines scoped reading and validation', () => {
   assert.deepEqual(workspace.calls, [
     { section: CONFIG_NAMESPACE, resource: documentUri },
   ]);
+});
+
+test('validateS3Config validates S3 independently for the test command', () => {
+  const s3Config = createValidConfig().s3;
+
+  assert.equal(validateS3Config(s3Config), s3Config);
 });
