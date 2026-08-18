@@ -22,7 +22,7 @@ mdImageUploader
 
 核心目标：
 
-> 在 VS Code 编辑 Markdown 文件时，直接 `Ctrl+V` 粘贴图片，扩展自动将图片转换为 WebP、计算最终 WebP 的 SHA-256、按照 Markdown 路径中的日期决定 S3 Object Key、上传到 S3/S3-compatible 对象存储，并自动插入 CDN Markdown 图片链接。
+> 在 VS Code 编辑 Markdown 文件时，直接 `Ctrl+V` 粘贴图片，扩展自动将图片转换为 WebP、计算最终 WebP 的 SHA-256、按照“目录日期优先、文件名日期其次、当前本地日期 fallback”的规则决定 S3 Object Key、上传到 S3/S3-compatible 对象存储，并自动插入 CDN Markdown 图片链接。
 
 最终体验：
 
@@ -458,7 +458,7 @@ const now = new Date();
 const timestamp = now.getTime();
 ```
 
-后续 fallback 日期也使用同一个 `now`，避免跨午夜时目录日期和 timestamp 所属日期不一致。
+后续 fallback 日期也使用同一个 `now`，避免跨午夜时当前本地日期目录和 timestamp 所属日期不一致。
 
 原始文件名：
 
@@ -472,13 +472,46 @@ C++变量示意图[最终版].png
 
 # 10. Markdown 日期识别
 
-检查：
+日期提取基于当前 Markdown 文件的：
 
 ```text
 当前 Markdown 文件的 workspace-relative path
 ```
 
-不仅检查文件名，也检查整个路径。
+但不得把整个 path 当作一个字符串直接搜索。必须先分离：
+
+```text
+directory path
+Markdown basename
+```
+
+并严格按照以下优先级处理：
+
+```text
+directory date
+    ↓ 没找到
+filename date
+    ↓ 没找到
+current local date + undatedUploadPath
+```
+
+## 10.1 第一优先级：Directory Date
+
+只检查 Markdown 文件名之前的目录部分。
+
+从距离当前 Markdown 文件最近的父级目录开始，逐级向上检查各级目录名称中的合法：
+
+```text
+YYYY-MM-DD
+```
+
+一旦某级目录中找到合法日期，就立即返回该日期，并将来源标记为：
+
+```text
+directory
+```
+
+后续 routing 必须使用 `datedUploadPath`。此时不得再用 Markdown 文件名中的日期覆盖它。
 
 例如：
 
@@ -492,32 +525,140 @@ wiki/2023-10-05-Cplusplus教学/0200-C++基础初识.md
 2023-10-05
 ```
 
-以下也应该识别：
+如果多个不同层级的目录都包含合法日期，必须选择距离 Markdown 文件最近的那个目录日期。
+
+例如：
 
 ```text
-docs/2023-10-05/article.md
-docs/C++/2023-10-05-基础.md
-2023-10-05/docs/article.md
+archive/2024-01-01/foo/2026-03-15-project/article.md
 ```
 
-日期格式：
+应识别：
 
 ```text
-YYYY-MM-DD
+2026-03-15
 ```
 
-必须进一步校验是否是合法日期，例如：
+而不是：
 
 ```text
-2023-02-29
-2026-13-01
+2024-01-01
 ```
 
-不得认为是合法日期。
+## 10.2 第二优先级：Filename Date
 
-如果路径中存在多个合法日期：
+只有所有父级目录名称中都没有找到合法日期时，才允许检查当前 Markdown basename。
 
-> 使用距离 Markdown 文件最近的那个日期，即 normalized path 中最后出现的合法日期。
+例如：
+
+```text
+docs/drivers/2026-01-14-W311MI_AX300驱动.md
+```
+
+应识别：
+
+```text
+2026-01-14
+```
+
+并将来源标记为：
+
+```text
+filename
+```
+
+后续 routing 必须使用 `datedUploadPath`。
+
+如果目录和文件名同时包含合法日期，目录日期拥有绝对优先级。
+
+例如：
+
+```text
+docs/2025-05-20-project/2026-01-14-W311MI_AX300驱动.md
+```
+
+必须识别：
+
+```text
+2025-05-20
+source = directory
+```
+
+不得被文件名中的：
+
+```text
+2026-01-14
+```
+
+覆盖。
+
+## 10.3 第三优先级：Current Local Date
+
+如果目录部分和 Markdown basename 中都没有合法日期，则页面日期提取结果返回：
+
+```text
+undefined
+```
+
+该文档属于 undated document。后续 routing 必须使用：
+
+```text
+undatedUploadPath
++ 图片粘贴时的当前本地日期
+```
+
+当前本地日期不是页面日期提取结果，不得将其标记为 `directory` 或 `filename` 来源。
+
+## 10.4 日期合法性
+
+任何候选 `YYYY-MM-DD` 都必须进行真实日历日期校验，不能只依赖正则格式匹配。
+
+例如：
+
+```text
+2024-02-29    合法
+2023-02-29    非法
+2026-13-01    非法
+2026-04-31    非法
+```
+
+非法日期必须视为“未找到日期”，然后继续当前优先级内的查找或进入下一优先级。
+
+例如：
+
+```text
+docs/2023-02-29-project/2026-01-14-test.md
+```
+
+目录日期非法，因此继续检查 filename，最终得到：
+
+```text
+2026-01-14
+source = filename
+```
+
+## 10.5 日期提取结果
+
+`dateRouter.ts` 应返回日期及其来源，建议结构：
+
+```ts
+type PageDateSource = 'directory' | 'filename';
+
+interface PageDateMatch {
+    date: {
+        year: number;
+        month: number;
+        day: number;
+    };
+    source: PageDateSource;
+}
+```
+
+如果目录和文件名均未找到合法日期：
+
+```ts
+undefined
+```
 
 ---
 
@@ -542,6 +683,14 @@ Markdown：
 ```text
 wiki/2023-10-05-Cplusplus教学/0200-C++基础初识.md
 ```
+
+页面日期可以来自 directory 或 filename。只要日期提取结果存在，就必须使用：
+
+```text
+mdImageUploader.datedUploadPath
+```
+
+如果两处都有合法日期，必须使用 directory date；filename date 不得覆盖它。
 
 timestamp：
 
@@ -587,13 +736,14 @@ README.md
 docs/C++/变量.md
 ```
 
-没有任何合法：
+只有同时满足以下条件时，才属于无日期 Markdown：
 
 ```text
-YYYY-MM-DD
+所有父级目录名称中没有合法 YYYY-MM-DD
+当前 Markdown basename 中也没有合法 YYYY-MM-DD
 ```
 
-这时走另一套路径：
+此时 `dateRouter.ts` 返回 `undefined`，routing 走另一套路径：
 
 ```text
 mdImageUploader.undatedUploadPath
@@ -1186,12 +1336,14 @@ hash8
 负责：
 
 ```text
-当前 Markdown path
-→ pageDate | undefined
-
-无 pageDate
-→ local current date
+当前 Markdown workspace-relative path
+→ 先从 directory path 中提取距离文件最近的合法日期
+→ directory 未找到时，再从 Markdown basename 中提取合法日期
+→ 返回 PageDateMatch { date, source: 'directory' | 'filename' }
+→ directory / filename 均未找到时返回 undefined
 ```
+
+`dateRouter.ts` 必须执行真实日历日期校验。当前本地日期 fallback 属于后续 routing，不得伪装成页面日期匹配结果。
 
 ---
 
@@ -1303,15 +1455,26 @@ document.uri scoped config
 实现：
 
 ```text
-日期提取
-日期合法性校验
+从 directory path 提取距离 Markdown 最近的合法日期
+directory 未找到时从 Markdown basename 提取合法日期
+返回 date + source(directory | filename)
+真实日历日期合法性校验
+未找到页面日期时返回 undefined
+undefined 时使用当前本地日期与 undatedUploadPath
 dated / undated routing
 path normalization
 timestamp
 Object Key
 ```
 
-必须大量写单测。
+必须大量写单测，并明确验证：
+
+```text
+directory date 优先于 filename date
+多个 directory date 选择距离 Markdown 最近的目录
+非法 directory date 不阻止合法 filename date fallback
+directory / filename 均无日期时使用本地日期和 undatedUploadPath
+```
 
 ---
 
@@ -1449,34 +1612,76 @@ V1 优先保证桌面版正常，不要求 Web Extension。
 
 ## 日期测试
 
+### Case 1 — Directory Date
+
 输入：
 
 ```text
-wiki/2023-10-05-Cplusplus/0200.md
+wiki/2023-10-05-Cplusplus教学/0200-C++基础初识.md
 ```
 
 预期：
 
 ```text
-2023/10/05
+2023-10-05
+source = directory
 ```
+
+### Case 2 — Filename Date
 
 输入：
 
 ```text
-docs/C++/2024-02-29-demo.md
+docs/drivers/2026-01-14-W311MI_AX300驱动.md
 ```
 
 预期：
 
 ```text
-2024/02/29
+2026-01-14
+source = filename
 ```
+
+### Case 3 — Directory 优先于 Filename
 
 输入：
 
 ```text
-docs/2023-02-29-demo.md
+docs/2025-05-20-project/2026-01-14-W311MI_AX300驱动.md
+```
+
+预期：
+
+```text
+2025-05-20
+source = directory
+```
+
+说明：directory date 优先于 filename date。
+
+### Case 4 — 最近的 Directory Date
+
+输入：
+
+```text
+archive/2024-01-01/foo/2026-03-15-project/article.md
+```
+
+预期：
+
+```text
+2026-03-15
+source = directory
+```
+
+说明：多个 directory date 时，选择距离 Markdown 文件最近的目录。
+
+### Case 5 — Undated Document
+
+输入：
+
+```text
+docs/drivers/W311MI_AX300驱动.md
 ```
 
 预期：
@@ -1485,33 +1690,62 @@ docs/2023-02-29-demo.md
 undefined
 ```
 
+后续 routing 必须使用：
+
+```text
+undatedUploadPath + 图片粘贴时的当前本地日期
+```
+
+### Case 6 — 非法 Directory Date 后检查 Filename
+
 输入：
 
 ```text
-README.md
+docs/2023-02-29-project/2026-01-14-test.md
+```
+
+其中：
+
+```text
+2023-02-29 非法
 ```
 
 预期：
 
 ```text
-undefined
+2026-01-14
+source = filename
 ```
 
-多个日期：
+### Case 7 — 合法闰日 Directory Date
+
+输入：
 
 ```text
-2020-01-01/docs/2023-10-05/article.md
+docs/2024-02-29-project/test.md
 ```
 
 预期：
 
 ```text
-2023/10/05
+2024-02-29
+source = directory
 ```
+
+另外必须覆盖以下非法日期：
+
+```text
+2026-13-01
+2026-04-31
+```
+
+它们必须视为未找到，并继续下一优先级。
 
 ---
 
 # 27. Object Key 测试
+
+Object Key routing 必须使用 `dateRouter.ts` 已经按优先级选定的页面日期。Object Key 层不得重新扫描整个 path，也不得让 filename date 覆盖 directory date。
 
 输入：
 
@@ -1546,6 +1780,42 @@ wiki/images/2023/10/05/1787039123456-a3f91c2e.webp
 
 ```text
 /wiki/images//2023/...
+```
+
+---
+
+Filename date routing：
+
+```text
+Markdown = docs/drivers/2026-01-14-W311MI_AX300驱动.md
+datedUploadPath = wiki
+timestamp = 1787039123456
+hash8 = a3f91c2e
+```
+
+必须得到：
+
+```text
+wiki/2026/01/14/1787039123456-a3f91c2e.webp
+```
+
+---
+
+Undated routing：
+
+```text
+Markdown = docs/drivers/W311MI_AX300驱动.md
+pageDate = undefined
+undatedUploadPath = misc
+current local date = 2026-08-18
+timestamp = 1787039123456
+hash8 = a3f91c2e
+```
+
+必须得到：
+
+```text
+misc/2026/08/18/1787039123456-a3f91c2e.webp
 ```
 
 ---
@@ -1899,6 +2169,36 @@ README.md
 misc/2026/08/18/<timestamp>-<hash8>.webp
 ```
 
+还必须人工检查 filename fallback。打开：
+
+```text
+docs/drivers/2026-01-14-W311MI_AX300驱动.md
+```
+
+在所有父级目录均无日期时，必须生成：
+
+```text
+wiki/2026/01/14/<timestamp>-<hash8>.webp
+```
+
+再检查 directory 优先级。打开：
+
+```text
+docs/2025-05-20-project/2026-01-14-W311MI_AX300驱动.md
+```
+
+必须使用 directory date：
+
+```text
+wiki/2025/05/20/<timestamp>-<hash8>.webp
+```
+
+不得使用 filename date 生成：
+
+```text
+wiki/2026/01/14/<timestamp>-<hash8>.webp
+```
+
 最后检查普通文本：
 
 ```text
@@ -1927,8 +2227,11 @@ hello
 - SHA-256 使用小写 hex。
 - 文件名使用 hash 前 8 位。
 - 原文件名不进入 Object Key。
-- 有日期 Markdown 使用 Markdown 路径日期。
-- 无日期 Markdown 使用当前本地日期。
+- 页面日期按 directory date 优先、filename date 其次的顺序提取。
+- 多个 directory date 使用距离 Markdown 文件最近的目录日期。
+- directory date 存在时不得被 filename date 覆盖。
+- 所有 `YYYY-MM-DD` 候选都经过真实日历日期校验。
+- directory / filename 均无合法日期时使用 undatedUploadPath 与当前本地日期。
 - datedUploadPath 与 undatedUploadPath 独立配置。
 - User Settings 可以被 Workspace Settings 覆盖。
 - 不同仓库可以拥有不同 Upload Path。
