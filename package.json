@@ -102,14 +102,20 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "check": "tsc --noEmit -p ./",
-    "lint": "eslint src test",
-    "test": "npm run compile && node --test test/*.test.js"
+    "lint": "eslint src test scripts",
+    "test": "npm run compile && node --test test/*.test.js",
+    "package:vsix": "vsce package --target linux-x64 --allow-missing-repository --out md-image-uploader-linux-x64.vsix",
+    "verify:vsix": "node scripts/verifyVsix.js md-image-uploader-linux-x64.vsix",
+    "verify:installed-vsix": "node scripts/verifyInstalledVsix.js md-image-uploader-linux-x64.vsix",
+    "test:vsix": "npm run package:vsix && npm run verify:vsix"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
     "@types/vscode": "1.97.0",
     "@typescript-eslint/eslint-plugin": "^8.18.2",
     "@typescript-eslint/parser": "^8.18.2",
+    "@vscode/vsce": "^3.9.2",
+    "adm-zip": "^0.5.18",
     "eslint": "^9.17.0",
     "typescript": "^5.7.2"
   },

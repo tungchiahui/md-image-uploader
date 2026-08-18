@@ -33,6 +33,24 @@ npm run compile
 
 Open this repository in VS Code and press `F5`. The included launch configuration starts an Extension Development Host and watches the TypeScript sources.
 
+For the manual Extension Development Host check, open a Markdown file in the host, confirm **MD Image Uploader: Test Upload** is present in the Command Palette, and use **Paste As...** to confirm **Upload image with MD Image Uploader** is registered. A real end-to-end paste additionally requires valid S3 and CDN settings.
+
+### Build and install the Linux x64 VSIX
+
+The verified packaging target in this repository is desktop VS Code on Linux x64. Build the package and verify its bundled Sharp runtime with:
+
+```bash
+npm run test:vsix
+```
+
+This creates `md-image-uploader-linux-x64.vsix`. In VS Code, open the Extensions view, choose **Install from VSIX...**, and select that file. Sharp contains platform-specific native code, so other desktop targets must be packaged and verified for their own platform before distribution.
+
+When the `code` CLI is available, verify an isolated installation of the generated package with:
+
+```bash
+npm run verify:installed-vsix
+```
+
 ## Configuration
 
 Settings use the `mdImageUploader` namespace. A complete example is:
