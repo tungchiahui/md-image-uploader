@@ -1,3 +1,5 @@
+[中文](README-zh_CN.md) | English
+
 # MD Image Uploader
 
 MD Image Uploader is a desktop VS Code extension that uploads images pasted into Markdown documents to S3-compatible object storage. It converts supported images to WebP, hashes the final WebP bytes, routes the object by the Markdown page date, uploads it, and inserts a CDN Markdown link.
