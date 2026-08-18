@@ -2,7 +2,7 @@
 
 MD Image Uploader is a desktop VS Code extension for uploading images pasted into Markdown documents.
 
-The project currently contains the extension scaffold, resource-scoped configuration, date routing, and object key generation. Image conversion, uploads, and paste handling will be added in later tasks from the project specification.
+The project currently contains the extension scaffold, resource-scoped configuration, date routing, object key generation, WebP conversion, and final-WebP hashing. Uploads and paste handling will be added in later tasks from the project specification.
 
 ## Development
 
