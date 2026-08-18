@@ -12,11 +12,14 @@ export const imagePasteKind = vscode.DocumentDropOrPasteEditKind.Empty.append(
   'mdImageUploader',
 );
 
-export type ImagePasteResolver = (
-  documentUri: vscode.Uri,
-  image: ImagePasteInput,
-  token: vscode.CancellationToken,
-) => Promise<string | vscode.SnippetString>;
+export interface ImagePasteHandler {
+  canHandle(documentUri: vscode.Uri): boolean;
+  resolve(
+    documentUri: vscode.Uri,
+    image: ImagePasteInput,
+    token: vscode.CancellationToken,
+  ): Promise<string | vscode.SnippetString>;
+}
 
 export class ImagePasteEdit extends vscode.DocumentPasteEdit {
   public constructor(
@@ -30,7 +33,7 @@ export class ImagePasteEdit extends vscode.DocumentPasteEdit {
 export class ImagePasteProvider
   implements vscode.DocumentPasteEditProvider<ImagePasteEdit>
 {
-  public constructor(private readonly resolver?: ImagePasteResolver) {}
+  public constructor(private readonly handler?: ImagePasteHandler) {}
 
   public async provideDocumentPasteEdits(
     document: vscode.TextDocument,
@@ -39,7 +42,11 @@ export class ImagePasteProvider
     _context: vscode.DocumentPasteEditContext,
     token: vscode.CancellationToken,
   ): Promise<ImagePasteEdit[]> {
-    if (this.resolver === undefined || token.isCancellationRequested) {
+    if (
+      this.handler === undefined ||
+      token.isCancellationRequested ||
+      !this.handler.canHandle(document.uri)
+    ) {
       return [];
     }
 
@@ -56,11 +63,11 @@ export class ImagePasteProvider
     pasteEdit: ImagePasteEdit,
     token: vscode.CancellationToken,
   ): Promise<ImagePasteEdit> {
-    if (this.resolver === undefined || token.isCancellationRequested) {
+    if (this.handler === undefined || token.isCancellationRequested) {
       return pasteEdit;
     }
 
-    pasteEdit.insertText = await this.resolver(
+    pasteEdit.insertText = await this.handler.resolve(
       pasteEdit.documentUri,
       pasteEdit.image,
       token,
@@ -71,12 +78,12 @@ export class ImagePasteProvider
 
 export function registerImagePasteProvider(
   context: vscode.ExtensionContext,
-  resolver?: ImagePasteResolver,
+  handler?: ImagePasteHandler,
 ): void {
   context.subscriptions.push(
     vscode.languages.registerDocumentPasteEditProvider(
       { language: 'markdown' },
-      new ImagePasteProvider(resolver),
+      new ImagePasteProvider(handler),
       {
         providedPasteEditKinds: [imagePasteKind],
         pasteMimeTypes: IMAGE_PASTE_MIME_TYPES,

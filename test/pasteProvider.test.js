@@ -103,7 +103,7 @@ test('registers only for Markdown with image and file MIME metadata', () => {
   assert.equal(subscriptions.length, 1);
 });
 
-test('does not claim image paste before the Task 7 resolver is connected', async () => {
+test('does not claim image paste without a handler', async () => {
   let dataReads = 0;
   const provider = new ImagePasteProvider();
   const transfer = createImageTransfer({
@@ -128,9 +128,12 @@ test('does not claim image paste before the Task 7 resolver is connected', async
 test('copies image bytes before resolving the final paste text', async () => {
   const sourceBytes = Uint8Array.from([1, 2, 3]);
   const resolverCalls = [];
-  const provider = new ImagePasteProvider(async (documentUri, image) => {
-    resolverCalls.push({ documentUri, image });
-    return '![](https://cdn.example.com/image.webp)';
+  const provider = new ImagePasteProvider({
+    canHandle: () => true,
+    async resolve(documentUri, image) {
+      resolverCalls.push({ documentUri, image });
+      return '![](https://cdn.example.com/image.webp)';
+    },
   });
 
   const edits = await provider.provideDocumentPasteEdits(
@@ -155,11 +158,14 @@ test('copies image bytes before resolving the final paste text', async () => {
   );
 });
 
-test('returns no edit for ordinary text even when a resolver exists', async () => {
+test('returns no edit for ordinary text even when a handler exists', async () => {
   let resolverCalls = 0;
-  const provider = new ImagePasteProvider(async () => {
-    resolverCalls += 1;
-    return 'unexpected';
+  const provider = new ImagePasteProvider({
+    canHandle: () => true,
+    async resolve() {
+      resolverCalls += 1;
+      return 'unexpected';
+    },
   });
   const textTransfer = [
     [
@@ -183,4 +189,31 @@ test('returns no edit for ordinary text even when a resolver exists', async () =
 
   assert.deepEqual(edits, []);
   assert.equal(resolverCalls, 0);
+});
+
+test('does not read or claim image data when the handler is disabled', async () => {
+  let dataReads = 0;
+  const provider = new ImagePasteProvider({
+    canHandle: () => false,
+    async resolve() {
+      return 'unexpected';
+    },
+  });
+  const transfer = createImageTransfer({
+    [Symbol.iterator]: function* iterate() {
+      dataReads += 1;
+      yield 1;
+    },
+  });
+
+  const edits = await provider.provideDocumentPasteEdits(
+    document,
+    [],
+    transfer,
+    pasteContext,
+    activeToken,
+  );
+
+  assert.deepEqual(edits, []);
+  assert.equal(dataReads, 0);
 });
