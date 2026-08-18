@@ -1,0 +1,13 @@
+{
+    //请放到个人设置,不要放到settings.json的部分
+    // "mdImageUploader.s3.accessKeyId": "xxxxxxxxxxxxxxxxxxxx",
+    // "mdImageUploader.s3.secretAccessKey": "xxxxxxxxxxxxxxxxxxxx",
+
+    //可以放到settings.json的部分,以下是例子
+    "mdImageUploader.s3.endpoint": "https://cos.ap-beijing.myqcloud.com",
+    "mdImageUploader.s3.region": "ap-beijing",
+    "mdImageUploader.s3.bucket": "cdn-tungchiahui-cn-1377333392",
+    "mdImageUploader.cdnUrl": "https://cdn.tungchiahui.cn",
+    "mdImageUploader.datedUploadPath": "/tungwebsite/assets/images",
+    "mdImageUploader.undatedUploadPath": "/tungwebsite/assets/images/undate"
+}
