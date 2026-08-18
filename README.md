@@ -118,6 +118,15 @@ If another extension also provides image paste edits, prefer this extension's pa
 
 You can also use **Paste As...** and select **Upload image with MD Image Uploader**.
 
+While a paste is running, the extension shows the current stage beside the
+paste location: preparing, WebP conversion, path generation, upload, and
+completion. The text follows the VS Code display language for English,
+Simplified Chinese, and Traditional Chinese.
+
+For detailed diagnostics, open **View > Output** and select
+**MD Image Uploader**. The log records stages, object keys, durations, and
+errors without logging S3 credentials.
+
 ## Date routing and object keys
 
 Every `YYYY-MM-DD` candidate is checked as a real calendar date. The priority is:

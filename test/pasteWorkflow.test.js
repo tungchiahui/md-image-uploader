@@ -42,6 +42,7 @@ async function createPng() {
 test('runs the complete dated paste workflow and hashes the uploaded WebP', async () => {
   let uploadedCommand;
   let destroyed = false;
+  const progressEvents = [];
   const client = {
     async send(command) {
       uploadedCommand = command;
@@ -59,6 +60,9 @@ test('runs the complete dated paste workflow and hashes the uploaded WebP', asyn
         'wiki/2023-10-05-Cplusplus教学/0200-C++基础初识.md',
       config,
       now,
+      onProgress(event) {
+        progressEvents.push(event);
+      },
     },
     {
       convertToWebp,
@@ -86,6 +90,11 @@ test('runs the complete dated paste workflow and hashes the uploaded WebP', asyn
     result.fullHash,
   );
   assert.equal(destroyed, true);
+  assert.deepEqual(progressEvents, [
+    { stage: 'converting' },
+    { stage: 'routing' },
+    { stage: 'uploading', objectKey: expectedKey },
+  ]);
 });
 
 test('routes an undated Markdown paste with the current local date', async () => {

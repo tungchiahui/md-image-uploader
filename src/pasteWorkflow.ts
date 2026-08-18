@@ -7,12 +7,14 @@ import {
 } from './objectKey';
 import { createS3Client, uploadWebp } from './s3Uploader';
 import { buildCdnUrl } from './url';
+import type { PasteProgressReporter } from './progress';
 
 export interface ProcessImagePasteOptions {
   inputBuffer: Buffer;
   workspaceRelativePath: string;
   config: MdImageUploaderConfig;
   now: Date;
+  onProgress?: PasteProgressReporter;
 }
 
 export interface ImagePasteWorkflowResult extends RoutedObjectKey {
@@ -40,11 +42,13 @@ export async function processImagePaste(
   options: ProcessImagePasteOptions,
   dependencies: ImagePasteWorkflowDependencies = defaultDependencies,
 ): Promise<ImagePasteWorkflowResult> {
+  options.onProgress?.({ stage: 'converting' });
   const finalWebpBuffer = await dependencies.convertToWebp(
     options.inputBuffer,
     { quality: options.config.webp.quality },
   );
   const hash = dependencies.hashFinalWebp(finalWebpBuffer);
+  options.onProgress?.({ stage: 'routing' });
   const routing = createRoutedObjectKey({
     workspaceRelativePath: options.workspaceRelativePath,
     datedUploadPath: options.config.datedUploadPath,
@@ -55,6 +59,10 @@ export async function processImagePaste(
   const client = dependencies.createS3Client(options.config.s3);
 
   try {
+    options.onProgress?.({
+      stage: 'uploading',
+      objectKey: routing.objectKey,
+    });
     await dependencies.uploadWebp(client, {
       bucket: options.config.s3.bucket,
       objectKey: routing.objectKey,

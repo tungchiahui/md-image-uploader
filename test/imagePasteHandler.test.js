@@ -63,6 +63,7 @@ try {
 }
 
 const { ImagePasteHandler, getWorkspaceRelativePath } = handlerModule;
+const { createTranslator } = require('../dist/localization.js');
 
 test('checks enabled using configuration scoped to the Markdown URI', () => {
   configurationReads.length = 0;
@@ -132,6 +133,78 @@ test('passes scoped config and the workspace-relative path to the workflow', asy
     );
     assert.equal(workflowOptions.config.s3.bucket, 'images');
     assert.equal(workflowOptions.now instanceof Date, true);
+  } finally {
+    pasteWorkflow.processImagePaste = originalProcessImagePaste;
+  }
+});
+
+test('logs safe paste metadata, progress stages, object key, and duration', async () => {
+  const pasteWorkflow = require('../dist/pasteWorkflow.js');
+  const originalProcessImagePaste = pasteWorkflow.processImagePaste;
+  const logEntries = [];
+  const progressEvents = [];
+  const logger = {
+    info(message) {
+      logEntries.push({ level: 'info', message });
+    },
+    error(message) {
+      logEntries.push({ level: 'error', message });
+    },
+  };
+
+  pasteWorkflow.processImagePaste = async (options) => {
+    options.onProgress({ stage: 'converting' });
+    options.onProgress({ stage: 'routing' });
+    options.onProgress({
+      stage: 'uploading',
+      objectKey: 'wiki/2026/01/14/12345678-deadbeef.webp',
+    });
+    return {
+      markdown: '![](https://cdn.example.com/image.webp)',
+      objectKey: 'wiki/2026/01/14/12345678-deadbeef.webp',
+    };
+  };
+
+  try {
+    const handler = new ImagePasteHandler({
+      logger,
+      translate: createTranslator('en'),
+    });
+    await handler.resolve(
+      {
+        path: '/workspace/docs/2026-01-14-article.md',
+        relativePath: 'docs/2026-01-14-article.md',
+        inWorkspace: true,
+      },
+      {
+        inputBuffer: Buffer.from([1, 2, 3]),
+        mimeType: 'image/png',
+        fileName: 'clipboard.png',
+      },
+      { isCancellationRequested: false },
+      (event) => progressEvents.push(event),
+    );
+
+    assert.equal(logEntries.length, 5);
+    assert.match(logEntries[0].message, /document=docs\/2026-01-14-article\.md/);
+    assert.match(logEntries[0].message, /mimeType=image\/png/);
+    assert.match(logEntries[0].message, /inputBytes=3/);
+    assert.match(logEntries[3].message, /objectKey=wiki\/2026\/01\/14/);
+    assert.match(logEntries[4].message, /Paste succeeded in \d+ ms/);
+    assert.equal(
+      logEntries.some(({ message }) =>
+        message.includes(configurationValues['s3.secretAccessKey']),
+      ),
+      false,
+    );
+    assert.deepEqual(progressEvents, [
+      { stage: 'converting' },
+      { stage: 'routing' },
+      {
+        stage: 'uploading',
+        objectKey: 'wiki/2026/01/14/12345678-deadbeef.webp',
+      },
+    ]);
   } finally {
     pasteWorkflow.processImagePaste = originalProcessImagePaste;
   }

@@ -19,10 +19,12 @@ class CancellationError extends Error {}
 
 const pasteRegistrations = [];
 const commandRegistrations = [];
+const outputChannels = [];
 const vscodeStub = {
   CancellationError,
   DocumentDropOrPasteEditKind,
   DocumentPasteEdit,
+  env: { language: 'zh-cn' },
   commands: {
     registerCommand(command, handler) {
       commandRegistrations.push({ command, handler });
@@ -35,7 +37,25 @@ const vscodeStub = {
       return { dispose() {} };
     },
   },
-  window: {},
+  window: {
+    createOutputChannel(name, options) {
+      const messages = [];
+      const channel = {
+        name,
+        options,
+        messages,
+        info(message) {
+          messages.push({ level: 'info', message });
+        },
+        error(message) {
+          messages.push({ level: 'error', message });
+        },
+        dispose() {},
+      };
+      outputChannels.push(channel);
+      return channel;
+    },
+  },
   workspace: {},
 };
 
@@ -57,6 +77,7 @@ test('extension entry point activates the paste provider and test command', () =
   const subscriptions = [];
   pasteRegistrations.length = 0;
   commandRegistrations.length = 0;
+  outputChannels.length = 0;
 
   extensionModule.activate({ subscriptions });
 
@@ -67,5 +88,9 @@ test('extension entry point activates the paste provider and test command', () =
     commandRegistrations[0].command,
     'mdImageUploader.testUpload',
   );
-  assert.equal(subscriptions.length, 2);
+  assert.equal(outputChannels.length, 1);
+  assert.equal(outputChannels[0].name, 'MD Image Uploader');
+  assert.deepEqual(outputChannels[0].options, { log: true });
+  assert.match(outputChannels[0].messages[0].message, /扩展已激活/);
+  assert.equal(subscriptions.length, 3);
 });

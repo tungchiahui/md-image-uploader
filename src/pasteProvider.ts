@@ -5,6 +5,12 @@ import {
   type ImagePasteInput,
   extractFirstSupportedImage,
 } from './pasteData';
+import {
+  createInlinePasteProgress,
+  type InlinePasteProgressFactory,
+} from './inlineProgress';
+import { createTranslator, type Translate } from './localization';
+import type { PasteProgressReporter } from './progress';
 
 export const imagePasteKind = vscode.DocumentDropOrPasteEditKind.Empty.append(
   'markdown',
@@ -18,6 +24,7 @@ export interface ImagePasteHandler {
     documentUri: vscode.Uri,
     image: ImagePasteInput,
     token: vscode.CancellationToken,
+    onProgress?: PasteProgressReporter,
   ): Promise<string>;
 }
 
@@ -34,7 +41,12 @@ export class ImagePasteEdit extends vscode.DocumentPasteEdit {
 export class ImagePasteProvider
   implements vscode.DocumentPasteEditProvider<ImagePasteEdit>
 {
-  public constructor(private readonly handler?: ImagePasteHandler) {}
+  public constructor(
+    private readonly handler?: ImagePasteHandler,
+    private readonly translate: Translate = createTranslator('en'),
+    private readonly progressFactory: InlinePasteProgressFactory =
+      createInlinePasteProgress,
+  ) {}
 
   public async provideDocumentPasteEdits(
     document: vscode.TextDocument,
@@ -68,29 +80,50 @@ export class ImagePasteProvider
       return pasteEdit;
     }
 
-    const markdown = await this.handler.resolve(
+    const progress = this.progressFactory(
       pasteEdit.documentUri,
-      pasteEdit.image,
-      token,
+      pasteEdit.ranges,
+      this.translate,
     );
-    const additionalEdit = new vscode.WorkspaceEdit();
-    additionalEdit.set(
-      pasteEdit.documentUri,
-      pasteEdit.ranges.map((range) => vscode.TextEdit.replace(range, markdown)),
-    );
-    pasteEdit.additionalEdit = additionalEdit;
-    return pasteEdit;
+    progress.update({ stage: 'preparing' });
+
+    try {
+      const markdown = await this.handler.resolve(
+        pasteEdit.documentUri,
+        pasteEdit.image,
+        token,
+        (event) => progress.update(event),
+      );
+      const additionalEdit = new vscode.WorkspaceEdit();
+      additionalEdit.set(
+        pasteEdit.documentUri,
+        pasteEdit.ranges.map((range) =>
+          vscode.TextEdit.replace(range, markdown),
+        ),
+      );
+      pasteEdit.additionalEdit = additionalEdit;
+      progress.complete();
+      return pasteEdit;
+    } catch (error) {
+      if (token.isCancellationRequested) {
+        progress.dispose();
+      } else {
+        progress.fail();
+      }
+      throw error;
+    }
   }
 }
 
 export function registerImagePasteProvider(
   context: vscode.ExtensionContext,
   handler?: ImagePasteHandler,
+  translate: Translate = createTranslator('en'),
 ): void {
   context.subscriptions.push(
     vscode.languages.registerDocumentPasteEditProvider(
       { language: 'markdown' },
-      new ImagePasteProvider(handler),
+      new ImagePasteProvider(handler, translate),
       {
         providedPasteEditKinds: [imagePasteKind],
         pasteMimeTypes: IMAGE_PASTE_MIME_TYPES,

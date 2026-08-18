@@ -118,6 +118,14 @@ V1 会将凭据作为普通 VS Code 设置保存。请把凭据放在 User Setti
 
 也可以使用 **Paste As...**，然后选择 **Upload image with MD Image Uploader**。
 
+粘贴进行时，扩展会在粘贴位置旁实时显示当前阶段：准备图片、转换
+WebP、生成路径、上传和完成。文字会根据 VS Code 显示语言自动使用
+English、简体中文或繁體中文。
+
+如需查看详细诊断信息，打开 **查看 > 输出**，然后选择
+**MD Image Uploader**。日志会记录阶段、Object Key、耗时和错误，但不会
+记录 S3 凭据。
+
 ## 日期路由与 Object Key
 
 每个 `YYYY-MM-DD` 候选值都会经过真实日历日期校验。优先级如下：

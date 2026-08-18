@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 
 import { readConfig, validateS3Config } from './config';
+import { createTranslator, type Translate } from './localization';
+import { noopLogger, type ExtensionLogger } from './logging';
 import { joinObjectKey } from './objectKey';
 import { createS3Client, uploadWebp } from './s3Uploader';
 
@@ -11,13 +13,20 @@ const testWebpBase64 =
 
 export function registerTestUploadCommand(
   context: vscode.ExtensionContext,
+  logger: ExtensionLogger = noopLogger,
+  translate: Translate = createTranslator('en'),
 ): void {
   context.subscriptions.push(
-    vscode.commands.registerCommand(TEST_UPLOAD_COMMAND, runTestUpload),
+    vscode.commands.registerCommand(TEST_UPLOAD_COMMAND, () =>
+      runTestUpload(logger, translate),
+    ),
   );
 }
 
-async function runTestUpload(): Promise<void> {
+async function runTestUpload(
+  logger: ExtensionLogger,
+  translate: Translate,
+): Promise<void> {
   const editor = vscode.window.activeTextEditor;
 
   if (editor === undefined || editor.document.languageId !== 'markdown') {
@@ -26,6 +35,8 @@ async function runTestUpload(): Promise<void> {
     );
     return;
   }
+
+  const startedAt = Date.now();
 
   try {
     const config = readConfig(editor.document.uri, vscode.workspace);
@@ -43,6 +54,9 @@ async function runTestUpload(): Promise<void> {
     );
     const finalWebpBuffer = Buffer.from(testWebpBase64, 'base64');
     const client = createS3Client(config.s3);
+    logger.info(
+      translate('logTestStarted', config.s3.bucket, objectKey),
+    );
 
     try {
       await vscode.window.withProgress(
@@ -64,7 +78,17 @@ async function runTestUpload(): Promise<void> {
     await vscode.window.showInformationMessage(
       `MD Image Uploader: Test upload succeeded: s3://${config.s3.bucket}/${objectKey}`,
     );
+    logger.info(
+      translate('logTestSucceeded', Date.now() - startedAt),
+    );
   } catch (error) {
+    logger.error(
+      translate(
+        'logTestFailed',
+        Date.now() - startedAt,
+        getErrorMessage(error),
+      ),
+    );
     await vscode.window.showErrorMessage(
       `MD Image Uploader: Test upload failed: ${getErrorMessage(error)}`,
     );

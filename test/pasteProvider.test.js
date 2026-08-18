@@ -150,13 +150,36 @@ test('does not claim image paste without a handler', async () => {
 test('copies image bytes before resolving the final paste text', async () => {
   const sourceBytes = Uint8Array.from([1, 2, 3]);
   const resolverCalls = [];
-  const provider = new ImagePasteProvider({
-    canHandle: () => true,
-    async resolve(documentUri, image) {
-      resolverCalls.push({ documentUri, image });
-      return '![](https://cdn.example.com/image.webp)';
+  const progressEvents = [];
+  const provider = new ImagePasteProvider(
+    {
+      canHandle: () => true,
+      async resolve(documentUri, image, _token, onProgress) {
+        resolverCalls.push({ documentUri, image });
+        onProgress({ stage: 'converting' });
+        onProgress({
+          stage: 'uploading',
+          objectKey: 'wiki/2026/08/18/image.webp',
+        });
+        return '![](https://cdn.example.com/image.webp)';
+      },
     },
-  });
+    (key) => key,
+    () => ({
+      update(event) {
+        progressEvents.push(event);
+      },
+      complete() {
+        progressEvents.push({ stage: 'complete' });
+      },
+      fail() {
+        progressEvents.push({ stage: 'failed' });
+      },
+      dispose() {
+        progressEvents.push({ stage: 'disposed' });
+      },
+    }),
+  );
 
   const edits = await provider.provideDocumentPasteEdits(
     document,
@@ -185,6 +208,15 @@ test('copies image bytes before resolving the final paste text', async () => {
         },
       ],
     ],
+  ]);
+  assert.deepEqual(progressEvents, [
+    { stage: 'preparing' },
+    { stage: 'converting' },
+    {
+      stage: 'uploading',
+      objectKey: 'wiki/2026/08/18/image.webp',
+    },
+    { stage: 'complete' },
   ]);
 });
 
