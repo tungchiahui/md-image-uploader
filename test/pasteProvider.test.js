@@ -25,10 +25,28 @@ class DocumentPasteEdit {
   }
 }
 
+class TextEdit {
+  static replace(range, newText) {
+    return { range, newText };
+  }
+}
+
+class WorkspaceEdit {
+  constructor() {
+    this.entries = [];
+  }
+
+  set(uri, edits) {
+    this.entries.push([uri, edits]);
+  }
+}
+
 const registrations = [];
 const vscodeStub = {
   DocumentDropOrPasteEditKind,
   DocumentPasteEdit,
+  TextEdit,
+  WorkspaceEdit,
   languages: {
     registerDocumentPasteEditProvider(selector, provider, metadata) {
       registrations.push({ selector, provider, metadata });
@@ -79,6 +97,10 @@ function createImageTransfer(bytes) {
 const activeToken = { isCancellationRequested: false };
 const pasteContext = { only: undefined, triggerKind: 0 };
 const document = { uri: { path: '/workspace/article.md' } };
+const pasteRange = {
+  start: { line: 1, character: 2 },
+  end: { line: 1, character: 2 },
+};
 
 test('constructs the required custom paste kind', () => {
   assert.equal(imagePasteKind.value, 'markdown.image.mdImageUploader');
@@ -115,7 +137,7 @@ test('does not claim image paste without a handler', async () => {
 
   const edits = await provider.provideDocumentPasteEdits(
     document,
-    [],
+    [pasteRange],
     transfer,
     pasteContext,
     activeToken,
@@ -138,7 +160,7 @@ test('copies image bytes before resolving the final paste text', async () => {
 
   const edits = await provider.provideDocumentPasteEdits(
     document,
-    [],
+    [pasteRange],
     createImageTransfer(sourceBytes),
     pasteContext,
     activeToken,
@@ -152,10 +174,18 @@ test('copies image bytes before resolving the final paste text', async () => {
   assert.equal(edits.length, 1);
   assert.deepEqual(edits[0].image.inputBuffer, Buffer.from([1, 2, 3]));
   assert.equal(resolverCalls[0].documentUri, document.uri);
-  assert.equal(
-    resolvedEdit.insertText,
-    '![](https://cdn.example.com/image.webp)',
-  );
+  assert.equal(resolvedEdit.insertText, '');
+  assert.deepEqual(resolvedEdit.additionalEdit.entries, [
+    [
+      document.uri,
+      [
+        {
+          range: pasteRange,
+          newText: '![](https://cdn.example.com/image.webp)',
+        },
+      ],
+    ],
+  ]);
 });
 
 test('returns no edit for ordinary text even when a handler exists', async () => {
@@ -181,7 +211,7 @@ test('returns no edit for ordinary text even when a handler exists', async () =>
 
   const edits = await provider.provideDocumentPasteEdits(
     document,
-    [],
+    [pasteRange],
     textTransfer,
     pasteContext,
     activeToken,
@@ -208,7 +238,7 @@ test('does not read or claim image data when the handler is disabled', async () 
 
   const edits = await provider.provideDocumentPasteEdits(
     document,
-    [],
+    [pasteRange],
     transfer,
     pasteContext,
     activeToken,

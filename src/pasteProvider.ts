@@ -18,13 +18,14 @@ export interface ImagePasteHandler {
     documentUri: vscode.Uri,
     image: ImagePasteInput,
     token: vscode.CancellationToken,
-  ): Promise<string | vscode.SnippetString>;
+  ): Promise<string>;
 }
 
 export class ImagePasteEdit extends vscode.DocumentPasteEdit {
   public constructor(
     public readonly documentUri: vscode.Uri,
     public readonly image: ImagePasteInput,
+    public readonly ranges: readonly vscode.Range[],
   ) {
     super('', 'Upload image with MD Image Uploader', imagePasteKind);
   }
@@ -37,7 +38,7 @@ export class ImagePasteProvider
 
   public async provideDocumentPasteEdits(
     document: vscode.TextDocument,
-    _ranges: readonly vscode.Range[],
+    ranges: readonly vscode.Range[],
     dataTransfer: vscode.DataTransfer,
     _context: vscode.DocumentPasteEditContext,
     token: vscode.CancellationToken,
@@ -56,7 +57,7 @@ export class ImagePasteProvider
       return [];
     }
 
-    return [new ImagePasteEdit(document.uri, image)];
+    return [new ImagePasteEdit(document.uri, image, [...ranges])];
   }
 
   public async resolveDocumentPasteEdit(
@@ -67,11 +68,17 @@ export class ImagePasteProvider
       return pasteEdit;
     }
 
-    pasteEdit.insertText = await this.handler.resolve(
+    const markdown = await this.handler.resolve(
       pasteEdit.documentUri,
       pasteEdit.image,
       token,
     );
+    const additionalEdit = new vscode.WorkspaceEdit();
+    additionalEdit.set(
+      pasteEdit.documentUri,
+      pasteEdit.ranges.map((range) => vscode.TextEdit.replace(range, markdown)),
+    );
+    pasteEdit.additionalEdit = additionalEdit;
     return pasteEdit;
   }
 }
