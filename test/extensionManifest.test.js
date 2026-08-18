@@ -18,3 +18,7 @@ test('contributes and activates the standalone S3 test upload command', () => {
     },
   ]);
 });
+
+test('does not override Ctrl+V with a keybinding', () => {
+  assert.equal(manifest.contributes.keybindings, undefined);
+});
