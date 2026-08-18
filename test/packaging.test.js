@@ -23,6 +23,13 @@ test('defines reproducible Linux x64 VSIX package and verification scripts', () 
   );
 });
 
+test('declares the repository used to resolve relative README links', () => {
+  assert.deepEqual(packageJson.repository, {
+    type: 'git',
+    url: 'https://github.com/tungchiahui/md-image-uploader.git',
+  });
+});
+
 test('keeps Sharp as a production dependency and VSIX tooling as development dependencies', () => {
   assert.equal(typeof packageJson.dependencies.sharp, 'string');
   assert.equal(typeof packageJson.devDependencies['@vscode/vsce'], 'string');
