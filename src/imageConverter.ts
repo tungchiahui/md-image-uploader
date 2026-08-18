@@ -30,6 +30,13 @@ export class UnsupportedImageFormatError extends Error {
   }
 }
 
+export class ImageConversionError extends Error {
+  public constructor(cause: unknown) {
+    super(getErrorMessage(cause), { cause });
+    this.name = 'ImageConversionError';
+  }
+}
+
 const supportedMediaTypes = new Set<string>(SUPPORTED_IMAGE_MIME_TYPES);
 
 export function isSupportedImageMimeType(mimeType: string): boolean {
@@ -43,23 +50,37 @@ export async function convertToWebp(
 ): Promise<Buffer> {
   validateQuality(options.quality);
 
-  const inputMetadata = await sharp(inputBuffer, { animated: true }).metadata();
+  try {
+    const inputMetadata = await sharp(inputBuffer, {
+      animated: true,
+    }).metadata();
 
-  if (
-    inputMetadata.mediaType === undefined ||
-    !isSupportedImageMimeType(inputMetadata.mediaType)
-  ) {
-    throw new UnsupportedImageFormatError(inputMetadata.mediaType);
+    if (
+      inputMetadata.mediaType === undefined ||
+      !isSupportedImageMimeType(inputMetadata.mediaType)
+    ) {
+      throw new UnsupportedImageFormatError(inputMetadata.mediaType);
+    }
+
+    return await sharp(inputBuffer, { animated: true })
+      .rotate()
+      .webp({ quality: options.quality })
+      .toBuffer();
+  } catch (error) {
+    if (error instanceof UnsupportedImageFormatError) {
+      throw error;
+    }
+
+    throw new ImageConversionError(error);
   }
-
-  return sharp(inputBuffer, { animated: true })
-    .rotate()
-    .webp({ quality: options.quality })
-    .toBuffer();
 }
 
 function validateQuality(quality: number): void {
   if (!Number.isInteger(quality) || quality < 1 || quality > 100) {
     throw new RangeError('WebP quality must be an integer from 1 to 100');
   }
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

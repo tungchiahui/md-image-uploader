@@ -4,6 +4,7 @@ const test = require('node:test');
 const sharp = require('sharp');
 
 const {
+  ImageConversionError,
   SUPPORTED_IMAGE_MIME_TYPES,
   UnsupportedImageFormatError,
   convertToWebp,
@@ -119,6 +120,16 @@ test('rejects supported-by-Sharp formats outside the required V1 set', async () 
     (error) =>
       error instanceof UnsupportedImageFormatError &&
       error.mediaType === 'image/svg+xml',
+  );
+});
+
+test('wraps image decoding failures without swallowing the Sharp cause', async () => {
+  await assert.rejects(
+    () => convertToWebp(Buffer.from('not an image'), { quality: 85 }),
+    (error) =>
+      error instanceof ImageConversionError &&
+      error.cause instanceof Error &&
+      error.message === error.cause.message,
   );
 });
 

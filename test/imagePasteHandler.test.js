@@ -19,10 +19,13 @@ const configurationValues = {
 };
 const configurationReads = [];
 const relativePathReads = [];
+const shownMessages = [];
 const vscodeStub = {
   CancellationError,
   window: {
-    async showErrorMessage() {},
+    async showErrorMessage(message) {
+      shownMessages.push(message);
+    },
   },
   workspace: {
     getConfiguration(section, scope) {
@@ -130,6 +133,83 @@ test('passes scoped config and the workspace-relative path to the workflow', asy
     assert.equal(workflowOptions.config.s3.bucket, 'images');
     assert.equal(workflowOptions.now instanceof Date, true);
   } finally {
+    pasteWorkflow.processImagePaste = originalProcessImagePaste;
+  }
+});
+
+test('shows a classified error, rethrows it, and returns no Markdown', async () => {
+  const pasteWorkflow = require('../dist/pasteWorkflow.js');
+  const originalProcessImagePaste = pasteWorkflow.processImagePaste;
+  const failure = new Error('unexpected workflow failure');
+  shownMessages.length = 0;
+
+  pasteWorkflow.processImagePaste = async () => {
+    throw failure;
+  };
+
+  try {
+    await assert.rejects(
+      () =>
+        new ImagePasteHandler().resolve(
+          {
+            path: '/workspace/docs/article.md',
+            relativePath: 'docs/article.md',
+            inWorkspace: true,
+          },
+          {
+            inputBuffer: Buffer.from([1]),
+            mimeType: 'image/png',
+            fileName: 'clipboard.png',
+          },
+          { isCancellationRequested: false },
+        ),
+      (error) => error === failure,
+    );
+    assert.deepEqual(shownMessages, [
+      'MD Image Uploader: Paste failed: unexpected workflow failure',
+    ]);
+  } finally {
+    pasteWorkflow.processImagePaste = originalProcessImagePaste;
+  }
+});
+
+test('reports missing scoped configuration before starting the workflow', async () => {
+  const pasteWorkflow = require('../dist/pasteWorkflow.js');
+  const originalProcessImagePaste = pasteWorkflow.processImagePaste;
+  const originalBucket = configurationValues['s3.bucket'];
+  let workflowCalls = 0;
+  configurationValues['s3.bucket'] = '';
+  shownMessages.length = 0;
+
+  pasteWorkflow.processImagePaste = async () => {
+    workflowCalls += 1;
+    return { markdown: 'unexpected' };
+  };
+
+  try {
+    await assert.rejects(
+      () =>
+        new ImagePasteHandler().resolve(
+          {
+            path: '/workspace/docs/article.md',
+            relativePath: 'docs/article.md',
+            inWorkspace: true,
+          },
+          {
+            inputBuffer: Buffer.from([1]),
+            mimeType: 'image/png',
+            fileName: 'clipboard.png',
+          },
+          { isCancellationRequested: false },
+        ),
+      /Missing setting "s3.bucket"/,
+    );
+    assert.equal(workflowCalls, 0);
+    assert.deepEqual(shownMessages, [
+      'MD Image Uploader: Missing setting "s3.bucket"',
+    ]);
+  } finally {
+    configurationValues['s3.bucket'] = originalBucket;
     pasteWorkflow.processImagePaste = originalProcessImagePaste;
   }
 });

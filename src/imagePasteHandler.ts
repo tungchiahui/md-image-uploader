@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import { getValidatedConfig, readConfig } from './config';
+import { formatPasteError } from './errorMessages';
 import type { ImagePasteInput } from './pasteData';
 import type { ImagePasteHandler as PasteHandler } from './pasteProvider';
 import { processImagePaste } from './pasteWorkflow';
@@ -43,10 +44,7 @@ export class ImagePasteHandler implements PasteHandler {
         throw error;
       }
 
-      const reason = error instanceof Error ? error.message : String(error);
-      await vscode.window.showErrorMessage(
-        `MD Image Uploader: Paste failed: ${reason}`,
-      );
+      void vscode.window.showErrorMessage(formatPasteError(error));
       throw error;
     }
   }
