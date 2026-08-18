@@ -39,6 +39,8 @@ npm run compile
 
 ### 构建并安装 Linux x64 VSIX
 
+Marketplace 扩展 ID 为 `tungchiahui.md-image-uploader`。
+
 本仓库已验证的打包目标是 Linux x64 桌面版 VS Code。执行以下命令构建 VSIX，并验证其中打包的 Sharp 运行时：
 
 ```bash

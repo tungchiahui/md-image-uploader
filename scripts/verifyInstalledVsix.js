@@ -43,7 +43,7 @@ async function main() {
 
     const installedDirectoryName = readdirSync(extensionsDirectory).find(
       (entryName) =>
-        entryName.startsWith('md-image-uploader.md-image-uploader-'),
+        entryName.startsWith('tungchiahui.md-image-uploader-'),
     );
     assert.ok(installedDirectoryName, 'Installed extension directory not found');
 

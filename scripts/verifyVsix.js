@@ -46,6 +46,10 @@ async function main() {
   );
 
   const manifest = archive.readAsText('extension.vsixmanifest');
+  assert.match(
+    manifest,
+    /<Identity[^>]+Id="md-image-uploader"[^>]+Publisher="tungchiahui"/,
+  );
   assert.match(manifest, /TargetPlatform="linux-x64"/);
 
   const extractionRoot = mkdtempSync(

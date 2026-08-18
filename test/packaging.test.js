@@ -10,6 +10,15 @@ const vscodeIgnore = readFileSync(
   'utf8',
 );
 
+test('uses the tungchiahui Marketplace extension identity', () => {
+  assert.equal(packageJson.publisher, 'tungchiahui');
+  assert.equal(packageJson.name, 'md-image-uploader');
+  assert.equal(
+    `${packageJson.publisher}.${packageJson.name}`,
+    'tungchiahui.md-image-uploader',
+  );
+});
+
 test('defines reproducible Linux x64 VSIX package and verification scripts', () => {
   assert.match(packageJson.scripts['package:vsix'], /--target linux-x64/);
   assert.match(packageJson.scripts['verify:vsix'], /verifyVsix\.js/);

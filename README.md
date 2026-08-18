@@ -39,6 +39,8 @@ For the manual Extension Development Host check, open a Markdown file in the hos
 
 ### Build and install the Linux x64 VSIX
 
+The Marketplace extension ID is `tungchiahui.md-image-uploader`.
+
 The verified packaging target in this repository is desktop VS Code on Linux x64. Build the package and verify its bundled Sharp runtime with:
 
 ```bash

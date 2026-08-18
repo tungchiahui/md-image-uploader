@@ -3,7 +3,7 @@
   "displayName": "MD Image Uploader",
   "description": "Upload pasted Markdown images to S3-compatible object storage.",
   "version": "0.0.1",
-  "publisher": "md-image-uploader",
+  "publisher": "tungchiahui",
   "repository": {
     "type": "git",
     "url": "https://github.com/tungchiahui/md-image-uploader.git"
