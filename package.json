@@ -14,12 +14,88 @@
     "onLanguage:markdown"
   ],
   "main": "./dist/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "MD Image Uploader",
+      "properties": {
+        "mdImageUploader.enabled": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "description": "Enable MD Image Uploader for this resource."
+        },
+        "mdImageUploader.s3.endpoint": {
+          "type": "string",
+          "default": "",
+          "scope": "resource",
+          "description": "Optional S3-compatible API endpoint. Leave empty to use the AWS S3 endpoint for the configured region."
+        },
+        "mdImageUploader.s3.region": {
+          "type": "string",
+          "default": "",
+          "scope": "resource",
+          "description": "AWS or S3-compatible service region."
+        },
+        "mdImageUploader.s3.bucket": {
+          "type": "string",
+          "default": "",
+          "scope": "resource",
+          "description": "Destination S3 bucket."
+        },
+        "mdImageUploader.s3.accessKeyId": {
+          "type": "string",
+          "default": "",
+          "scope": "resource",
+          "markdownDescription": "S3 access key ID. Store credentials in User Settings and do not commit them to a shared `.vscode/settings.json`."
+        },
+        "mdImageUploader.s3.secretAccessKey": {
+          "type": "string",
+          "default": "",
+          "scope": "resource",
+          "markdownDescription": "S3 secret access key. Store credentials in User Settings and do not commit them to a shared `.vscode/settings.json`."
+        },
+        "mdImageUploader.s3.forcePathStyle": {
+          "type": "boolean",
+          "default": false,
+          "scope": "resource",
+          "description": "Use path-style S3 URLs instead of virtual-hosted-style URLs."
+        },
+        "mdImageUploader.datedUploadPath": {
+          "type": "string",
+          "default": "markdown",
+          "scope": "resource",
+          "description": "Object key prefix used when the Markdown path contains a valid date."
+        },
+        "mdImageUploader.undatedUploadPath": {
+          "type": "string",
+          "default": "misc",
+          "scope": "resource",
+          "description": "Object key prefix used when the Markdown path does not contain a valid date."
+        },
+        "mdImageUploader.cdnUrl": {
+          "type": "string",
+          "default": "",
+          "scope": "resource",
+          "description": "Public HTTP or HTTPS base URL used for generated Markdown image links."
+        },
+        "mdImageUploader.webp.quality": {
+          "type": "number",
+          "default": 85,
+          "minimum": 1,
+          "maximum": 100,
+          "scope": "resource",
+          "description": "WebP output quality from 1 to 100."
+        }
+      }
+    }
+  },
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "check": "tsc --noEmit -p ./",
-    "lint": "eslint src"
+    "lint": "eslint src test",
+    "test": "npm run compile && node --test test/*.test.js"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
