@@ -44,10 +44,20 @@ test('declares the repository used to resolve relative README links', () => {
   });
 });
 
-test('keeps Sharp as a production dependency and VSIX tooling as development dependencies', () => {
-  assert.equal(typeof packageJson.dependencies.sharp, 'string');
+test('pins Sharp and its WASM backend as production dependencies', () => {
+  assert.equal(packageJson.dependencies.sharp, '0.35.3');
+  assert.equal(packageJson.dependencies['@img/sharp-wasm32'], '0.35.3');
   assert.equal(typeof packageJson.devDependencies['@vscode/vsce'], 'string');
   assert.equal(typeof packageJson.devDependencies['adm-zip'], 'string');
+});
+
+test('packages the WASM backend and excludes Electron-incompatible Linux binaries', () => {
+  assert.doesNotMatch(vscodeIgnore, /^node_modules\/@img\/sharp-wasm32\/\*\*$/m);
+  assert.match(vscodeIgnore, /^node_modules\/@img\/sharp-linux-x64\/\*\*$/m);
+  assert.match(
+    vscodeIgnore,
+    /^node_modules\/@img\/sharp-libvips-linux-x64\/\*\*$/m,
+  );
 });
 
 test('excludes development sources without excluding production node_modules', () => {

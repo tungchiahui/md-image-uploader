@@ -25,16 +25,25 @@ async function main() {
   requireEntry(entryNames, 'extension/assets/icon.png');
   requireEntry(entryNames, 'extension/dist/extension.js');
   requireEntry(entryNames, 'extension/dist/imageConverter.js');
+  requireEntry(entryNames, 'extension/dist/imageConverterWorker.js');
   requireEntry(entryNames, 'extension/node_modules/sharp/package.json');
   requireMatchingEntry(
     entryNames,
-    /^extension\/node_modules\/@img\/sharp-linux-x64\/lib\/.+\.node$/,
-    'Sharp Linux x64 native addon',
+    /^extension\/node_modules\/@img\/sharp-wasm32\/lib\/.+\.node\.wasm$/,
+    'Sharp WebAssembly backend',
   );
-  requireMatchingEntry(
-    entryNames,
-    /^extension\/node_modules\/@img\/sharp-libvips-linux-x64\/lib\/libvips-cpp\.so\./,
-    'Sharp Linux x64 libvips runtime',
+  assert.equal(
+    entryNames.some(
+      (entryName) =>
+        entryName.startsWith(
+          'extension/node_modules/@img/sharp-linux-x64/',
+        ) ||
+        entryName.startsWith(
+          'extension/node_modules/@img/sharp-libvips-linux-x64/',
+        ),
+    ),
+    false,
+    'VSIX must not contain Electron-incompatible Sharp Linux binaries',
   );
   assert.equal(
     entryNames.some(
@@ -68,7 +77,7 @@ async function main() {
     assert.equal(finalWebpBuffer.subarray(0, 4).toString('ascii'), 'RIFF');
     assert.equal(finalWebpBuffer.subarray(8, 12).toString('ascii'), 'WEBP');
     console.log(
-      `Verified ${path.basename(artifactPath)}: packaged Sharp converted PNG to WebP.`,
+      `Verified ${path.basename(artifactPath)}: isolated Sharp WASM converted PNG to WebP.`,
     );
   } finally {
     rmSync(extractionRoot, { recursive: true, force: true });

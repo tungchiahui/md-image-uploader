@@ -59,7 +59,7 @@ async function main() {
     assert.equal(finalWebpBuffer.subarray(0, 4).toString('ascii'), 'RIFF');
     assert.equal(finalWebpBuffer.subarray(8, 12).toString('ascii'), 'WEBP');
     console.log(
-      `Verified installed ${installedDirectoryName}: Sharp converted PNG to WebP.`,
+      `Verified installed ${installedDirectoryName}: isolated Sharp WASM converted PNG to WebP.`,
     );
   } finally {
     rmSync(testRoot, { recursive: true, force: true });
